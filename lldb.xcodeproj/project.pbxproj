@@ -719,6 +719,8 @@
 		4CF3D80C15AF4DC800845BF3 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDB919B414F6F10D008FF64B /* Security.framework */; };
 		4CF52AF51428291E0051E832 /* SBFileSpecList.h in Headers */ = {isa = PBXBuildFile; fileRef = 4CF52AF41428291E0051E832 /* SBFileSpecList.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4CF52AF8142829390051E832 /* SBFileSpecList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4CF52AF7142829390051E832 /* SBFileSpecList.cpp */; };
+		60E210881CE913E700573ED8 /* ObjectFileMono.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 604E93151CE908E300D6C120 /* ObjectFileMono.cpp */; };
+		60E2108A1CE913ED00573ED8 /* JITLoaderMono.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 60A615941CE90144003E5487 /* JITLoaderMono.cpp */; };
 		6D0F61431C80AAAE00A4ECEE /* JavaASTContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D0F61411C80AAAA00A4ECEE /* JavaASTContext.cpp */; };
 		6D0F61481C80AAD600A4ECEE /* DWARFASTParserJava.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D0F61441C80AACF00A4ECEE /* DWARFASTParserJava.cpp */; };
 		6D0F614E1C80AB0700A4ECEE /* JavaLanguageRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D0F614A1C80AB0400A4ECEE /* JavaLanguageRuntime.cpp */; };
@@ -2439,6 +2441,10 @@
 		4CEDAED311754F5E00E875A6 /* ThreadPlanStepUntil.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ThreadPlanStepUntil.h; path = include/lldb/Target/ThreadPlanStepUntil.h; sourceTree = "<group>"; };
 		4CF52AF41428291E0051E832 /* SBFileSpecList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SBFileSpecList.h; path = include/lldb/API/SBFileSpecList.h; sourceTree = "<group>"; };
 		4CF52AF7142829390051E832 /* SBFileSpecList.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SBFileSpecList.cpp; path = source/API/SBFileSpecList.cpp; sourceTree = "<group>"; };
+		604E93121CE908D900D6C120 /* ObjectFileMono.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ObjectFileMono.h; sourceTree = "<group>"; };
+		604E93151CE908E300D6C120 /* ObjectFileMono.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ObjectFileMono.cpp; sourceTree = "<group>"; };
+		60A615941CE90144003E5487 /* JITLoaderMono.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = JITLoaderMono.cpp; path = Mono/JITLoaderMono.cpp; sourceTree = "<group>"; };
+		60A615981CE90165003E5487 /* JITLoaderMono.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JITLoaderMono.h; path = Mono/JITLoaderMono.h; sourceTree = "<group>"; };
 		69A01E1B1236C5D400C660B5 /* Condition.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Condition.cpp; sourceTree = "<group>"; };
 		69A01E1C1236C5D400C660B5 /* Host.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Host.cpp; sourceTree = "<group>"; };
 		69A01E1E1236C5D400C660B5 /* Mutex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Mutex.cpp; sourceTree = "<group>"; };
@@ -5129,6 +5135,8 @@
 		26EFC4C718CFAF0D00865D87 /* JIT */ = {
 			isa = PBXGroup;
 			children = (
+				604E93151CE908E300D6C120 /* ObjectFileMono.cpp */,
+				604E93121CE908D900D6C120 /* ObjectFileMono.h */,
 				26EFC4CA18CFAF0D00865D87 /* ObjectFileJIT.cpp */,
 				26EFC4CB18CFAF0D00865D87 /* ObjectFileJIT.h */,
 			);
@@ -5456,6 +5464,15 @@
 			);
 			name = "GDB Remote";
 			path = "gdb-remote";
+			sourceTree = "<group>";
+		};
+		60A615971CE9014D003E5487 /* Mono */ = {
+			isa = PBXGroup;
+			children = (
+				60A615981CE90165003E5487 /* JITLoaderMono.h */,
+				60A615941CE90144003E5487 /* JITLoaderMono.cpp */,
+			);
+			name = Mono;
 			sourceTree = "<group>";
 		};
 		69A01E1A1236C5D400C660B5 /* common */ = {
@@ -5849,6 +5866,7 @@
 		AF2BCA6518C7EFDE005B4526 /* JITLoader */ = {
 			isa = PBXGroup;
 			children = (
+				60A615971CE9014D003E5487 /* Mono */,
 				AF2BCA6718C7EFDE005B4526 /* GDB */,
 			);
 			path = JITLoader;
@@ -6880,6 +6898,7 @@
 				268900ED13353E6F00698AC0 /* ObjCLanguageRuntime.cpp in Sources */,
 				268900EE13353E6F00698AC0 /* PathMappingList.cpp in Sources */,
 				4C2479BD1BA39295009C9A7B /* FunctionCaller.cpp in Sources */,
+				60E210881CE913E700573ED8 /* ObjectFileMono.cpp in Sources */,
 				268900EF13353E6F00698AC0 /* Platform.cpp in Sources */,
 				268900F013353E6F00698AC0 /* Process.cpp in Sources */,
 				26BC17AD18C7F4CB00D2196D /* RegisterContextPOSIXCore_mips64.cpp in Sources */,
@@ -7035,6 +7054,7 @@
 				2628A4D513D4977900F5487A /* ThreadKDP.cpp in Sources */,
 				26D7E45D13D5E30A007FD12B /* SocketAddress.cpp in Sources */,
 				94CD7D0C19A3FBCE00908B7C /* AppleObjCTypeEncodingParser.cpp in Sources */,
+				60E2108A1CE913ED00573ED8 /* JITLoaderMono.cpp in Sources */,
 				94B6E76213D88365005F417F /* ValueObjectSyntheticFilter.cpp in Sources */,
 				267A47FF1B1411D90021A5BC /* NativeWatchpointList.cpp in Sources */,
 				26F4A21C13FBA31A0064B613 /* ThreadMemory.cpp in Sources */,

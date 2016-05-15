@@ -19,6 +19,7 @@
 #include "lldb/Host/Endian.h"
 #include "lldb/Symbol/Symtab.h"
 #include "lldb/Symbol/UnwindTable.h"
+#include "lldb/Symbol/UnwindPlan.h"
 
 namespace lldb_private {
     
@@ -869,6 +870,12 @@ public:
     {
         return symbol_name.str();
     }
+
+	virtual lldb::UnwindPlanSP
+	GetUnwindPlan(lldb_private::AddressRange range, lldb::offset_t offset)
+	{
+		return nullptr;
+	}
 
     static lldb::SymbolType
     GetSymbolTypeFromName (llvm::StringRef name,

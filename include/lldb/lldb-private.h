@@ -10,6 +10,8 @@
 #ifndef lldb_lldb_private_h_
 #define lldb_lldb_private_h_
 
+#include <cstdio>
+
 #if defined(__cplusplus)
 
 #ifdef _WIN32

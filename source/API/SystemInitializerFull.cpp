@@ -50,6 +50,8 @@
 #include "Plugins/InstrumentationRuntime/AddressSanitizer/AddressSanitizerRuntime.h"
 #include "Plugins/InstrumentationRuntime/ThreadSanitizer/ThreadSanitizerRuntime.h"
 #include "Plugins/JITLoader/GDB/JITLoaderGDB.h"
+#include "Plugins/JITLoader/Mono/JITLoaderMono.h"
+#include "Plugins/ObjectFile/JIT/ObjectFileMono.h"
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 #include "Plugins/Language/Go/GoLanguage.h"
 #include "Plugins/Language/Java/JavaLanguage.h"
@@ -307,6 +309,9 @@ SystemInitializerFull::Initialize()
     DisassemblerLLVMC::Initialize();
 
     JITLoaderGDB::Initialize();
+    JITLoaderMono::Initialize();
+    ObjectFileMono::Initialize();
+
     ProcessElfCore::Initialize();
 #if defined(_MSC_VER)
     ProcessWinMiniDump::Initialize();

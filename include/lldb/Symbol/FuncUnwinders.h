@@ -94,6 +94,9 @@ public:
     GetAssemblyUnwindPlan (Target &target, Thread &thread, int current_offset);
 
     lldb::UnwindPlanSP
+    GetObjectFileUnwindPlan (Target &target, int current_offset);
+
+    lldb::UnwindPlanSP
     GetEHFrameUnwindPlan (Target &target, int current_offset);
 
     lldb::UnwindPlanSP
