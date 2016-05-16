@@ -71,6 +71,9 @@ public:
                              lldb::offset_t length,
                              lldb_private::ModuleSpecList &specs);
 
+	static uint64_t
+	GetMethodEntryRegion(void *buf, int size);
+
     //------------------------------------------------------------------
     // Member Functions
     //------------------------------------------------------------------

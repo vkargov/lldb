@@ -168,6 +168,15 @@ typedef struct {
 	int unwind_ops_offset;
 } MethodEntry;
 
+uint64_t
+ObjectFileMono::GetMethodEntryRegion(void *buf, int size)
+{
+	MethodEntry *entry;
+
+	entry = (MethodEntry*)buf;
+	return entry->region_addr;
+}
+
 void
 ObjectFileMono::AddMethod(void *buf, int size)
 {
@@ -186,7 +195,7 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	unwind_ops = (XUnwindOp*)(p + entry->unwind_ops_offset);
 
 	if (log)
-		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, entry->code, (char*)entry->code + entry->code_size);
+		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
 
 	// FIXME:
 	static int entry_index;
@@ -214,6 +223,7 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	m_symtab_ap->SectionFileAddressesChanged ();
 
 	UnwindPlanSP plan (new UnwindPlan (lldb::eRegisterKindDWARF));
+	plan->SetSourceName ("Mono JIT");
 	// FIXME:
 	plan->SetReturnAddressRegister (16);
 
@@ -273,21 +283,24 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	plan->Dump (s, nullptr, 0);
 	*/
 
-	unwinders [symbol.GetAddressRef().GetFileAddress()] = plan;
+	if (entry->nunwind_ops > 0)
+		unwinders [symbol.GetAddressRef().GetFileAddress()] = plan;
 }
 
 Symtab *
 ObjectFileMono::GetSymtab()
 {
-	int offset, i;
-
-    if (m_symtab_ap.get() != NULL)
+	if (m_symtab_ap.get() != NULL)
 		return m_symtab_ap.get ();
 
 	DataExtractor reader(m_data);
 	CodeRegionEntry entry;
-	int nbytes = reader.ExtractBytes (0, sizeof (CodeRegionEntry), eByteOrderLittle, &entry);
-	//fprintf (stderr, "MODULE: %s %p %x\n", entry.magic, entry.start, entry.size);
+	reader.ExtractBytes (0, sizeof (CodeRegionEntry), eByteOrderLittle, &entry);
+
+	Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
+
+	if (log)
+		log->Printf("ObjectFileMono::%s added JIT object file for range [%p-%p]", __FUNCTION__, (uint8_t*)entry.start, (uint8_t*)entry.start + entry.size);
 
 	m_sections_ap.reset(new SectionList());
 	m_symtab_ap.reset(new Symtab(this));
@@ -430,17 +443,23 @@ ObjectFileMono::ReadSectionData (const lldb_private::Section *section,
 lldb::UnwindPlanSP
 ObjectFileMono::GetUnwindPlan(lldb_private::AddressRange range, lldb::offset_t offset)
 {
-	/*
-	StreamFile s(stderr, false);
-	range.DumpDebug (&s);
-	*/
-
-	//fprintf (stderr, "GetUnwindPlan: %p\n", range.GetBaseAddress ().GetFileAddress ());
 	auto iter = unwinders.find (range.GetBaseAddress ().GetFileAddress ());
-	if (iter != unwinders.end ())
-		return iter->second;
-	else
+	if (iter != unwinders.end ()) {
+		Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
+
+		lldb::UnwindPlanSP plan (iter->second);
+
+		if (log) {
+			log->Printf("ObjectFileMono::%s found unwind plan for: %p", __FUNCTION__, (uint8_t*)range.GetBaseAddress ().GetFileAddress ());
+
+			StreamFile s(stderr, false);
+			plan->Dump (s, nullptr, 0);
+		}
+
+		return plan;
+	} else {
 		return NULL;
+	}
 }
 
 //------------------------------------------------------------------

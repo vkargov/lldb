@@ -34,15 +34,6 @@ using namespace lldb_private;
 // Mono plugin for lldb
 //
 
-typedef struct {
-	uint64_t region_addr;
-	uint64_t code;
-	int code_size;
-	int nunwind_ops;
-	int name_offset;
-	int unwind_ops_offset;
-} MethodEntry;
-
 JITLoaderMono::JITLoaderMono (lldb_private::Process *process) :
     JITLoader(process),
     m_jit_descriptor_addr(LLDB_INVALID_ADDRESS),
@@ -59,16 +50,6 @@ JITLoaderMono::~JITLoaderMono ()
 void
 JITLoaderMono::DebuggerInitialize(Debugger &debugger)
 {
-	/*
-    if (!PluginManager::GetSettingForJITLoaderPlugin(debugger, PluginProperties::GetSettingName()))
-    {
-        const bool is_global_setting = true;
-        PluginManager::CreateSettingForJITLoaderPlugin(debugger,
-                                                       GetGlobalPluginProperties()->GetValueProperties(),
-                                                       ConstString ("Properties for the JIT LoaderGDB plug-in."),
-                                                       is_global_setting);
-    }
-	*/
 }
 
 void JITLoaderMono::DidAttach()
@@ -210,6 +191,9 @@ typedef enum {
 	ENTRY_METHOD = 2
 } EntryType;
 
+#define MAJOR_VERSION 1
+#define MINOR_VERSION 0
+
 template <typename ptr_t>
 bool
 JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
@@ -234,7 +218,13 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
         return false;
     }
 
-	// FIXME: Check version
+	int major = jit_desc.version >> 16;
+	//int minor = jit_desc.version && 0xff;
+	if (major != MAJOR_VERSION) {
+		if (log)
+            log->Printf("JITLoaderMono::%s JIT descriptor has wrong version, expected %d got %d", __FUNCTION__, MAJOR_VERSION, major);
+		return false;
+	}
 
     addr_t jit_relevant_entry = (addr_t)jit_desc.entry;
 
@@ -301,18 +291,14 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 	case ENTRY_METHOD: {
 		uint8_t *buf = new uint8_t [debug_entry.size];
 		Error error;
-		uint8_t *p = buf;
-		MethodEntry *entry;
-		char *name;
+		uint64_t region_addr;
 
 		m_process->ReadMemory (debug_entry.addr, buf, debug_entry.size, error);
 		assert (!error.Fail ());
 
-		entry = (MethodEntry*)p;
-		p += sizeof (MethodEntry);
-		name = (char*)p;
-
-		auto iter = regions.find ((addr_t)entry->region_addr);
+		region_addr = ObjectFileMono::GetMethodEntryRegion(buf, debug_entry.size);
+		
+		auto iter = regions.find ((addr_t)region_addr);
 		assert (iter != regions.end ());
 		ObjectFileMono *ofile = (ObjectFileMono*)iter->second;
 
