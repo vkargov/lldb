@@ -38,6 +38,13 @@
 using namespace lldb;
 using namespace lldb_private;
 
+//
+// Design:
+// - One ObjectFileMono instance for each codegen region in the runtime (address range).
+// - Dynamically extended when methods are registered by the runtime
+// - SymbolVendorMono instances handle symbol info without an underlying SymbolFile.
+//
+
 void
 ObjectFileMono::Initialize()
 {
@@ -93,6 +100,13 @@ ObjectFileMono::CreateMemoryInstance (const lldb::ModuleSP &module_sp,
 
 		if (memcmp (magic, MAGIC, strlen (MAGIC)) == 0) {
 			std::auto_ptr<ObjectFileMono> objfile_ap(new ObjectFileMono(module_sp, data_sp, process_sp, header_addr));
+
+			// Set module architecture to match the target
+			ProcessInstanceInfo proc_info;
+			bool res = process_sp->GetProcessInfo (proc_info);
+			assert (res);
+			objfile_ap->SetModulesArchitecture (proc_info.GetArchitecture ());
+
 			return objfile_ap.release();
         }
     }

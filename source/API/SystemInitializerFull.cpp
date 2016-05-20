@@ -75,6 +75,7 @@
 #include "Plugins/SymbolFile/PDB/SymbolFilePDB.h"
 #include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
 #include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
+#include "Plugins/SymbolVendor/Mono/SymbolVendorMono.h"
 #include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
 #include "Plugins/UnwindAssembly/x86/UnwindAssembly-x86.h"
@@ -309,8 +310,6 @@ SystemInitializerFull::Initialize()
     DisassemblerLLVMC::Initialize();
 
     JITLoaderGDB::Initialize();
-    JITLoaderMono::Initialize();
-    ObjectFileMono::Initialize();
 
     ProcessElfCore::Initialize();
 #if defined(_MSC_VER)
@@ -368,6 +367,10 @@ SystemInitializerFull::Initialize()
     DynamicLoaderPOSIXDYLD::Initialize();
     DynamicLoaderStatic::Initialize();
     DynamicLoaderWindowsDYLD::Initialize();
+
+    JITLoaderMono::Initialize();
+    ObjectFileMono::Initialize();
+    SymbolVendorMono::Initialize();
 
     // Scan for any system or user LLDB plug-ins
     PluginManager::Initialize();
