@@ -198,7 +198,7 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	MethodEntry *entry;
 	char *name;
 	XUnwindOp *unwind_ops;
-	int i;
+	int i, ret_reg;
 
 	// FIXME: 32/64 bit
 
@@ -206,7 +206,8 @@ ObjectFileMono::AddMethod(void *buf, int size)
 
 	entry = (MethodEntry*)p;
 	name = (char*)(p + entry->name_offset);
-	unwind_ops = (XUnwindOp*)(p + entry->unwind_ops_offset);
+	ret_reg = *(p + entry->unwind_ops_offset);
+	unwind_ops = (XUnwindOp*)(p + entry->unwind_ops_offset + 1);
 
 	if (log)
 		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
@@ -238,8 +239,7 @@ ObjectFileMono::AddMethod(void *buf, int size)
 
 	UnwindPlanSP plan (new UnwindPlan (lldb::eRegisterKindDWARF));
 	plan->SetSourceName ("Mono JIT");
-	// FIXME:
-	plan->SetReturnAddressRegister (16);
+	plan->SetReturnAddressRegister (ret_reg);
 
 	UnwindPlan::Row *row = new UnwindPlan::Row ();
 
