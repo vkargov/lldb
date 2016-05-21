@@ -43,6 +43,7 @@ using namespace lldb_private;
 // - One ObjectFileMono instance for each codegen region in the runtime (address range).
 // - Dynamically extended when methods are registered by the runtime
 // - SymbolVendorMono instances handle symbol info without an underlying SymbolFile.
+// FIXME: Locking
 //
 
 void
@@ -128,7 +129,9 @@ ObjectFileMono::ObjectFileMono (const lldb::ModuleSP &module_sp,
 								lldb::DataBufferSP& header_data_sp,
 								const lldb::ProcessSP &process_sp,
 								addr_t header_addr) :
-    ObjectFile(module_sp, process_sp, header_addr, header_data_sp)
+    ObjectFile(module_sp, process_sp, header_addr, header_data_sp),
+	m_unwinders(),
+    m_ranges()
 {
 }
 
@@ -212,15 +215,13 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	if (log)
 		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
 
-	// FIXME:
-	static int entry_index;
-	entry_index ++;
+	static int symbol_id = m_symtab_ap->GetNumSymbols ();
 
 	auto section = GetSectionList (true)->GetSectionAtIndex (0);
 	int offset = (addr_t)entry->code - (addr_t)section->GetFileAddress ();
 
 	Symbol symbol(
-            entry_index,    // Symbol table index
+            symbol_id,    // Symbol table index
             name,     // symbol name.
             false,      // is the symbol name mangled?
             eSymbolTypeCode, // Type of this symbol
@@ -234,11 +235,13 @@ ObjectFileMono::AddMethod(void *buf, int size)
             true,            // Size is valid
             false,           // Contains linker annotations?
             0);              // Symbol flags.
-	m_symtab_ap->AddSymbol(symbol);
+	int symbol_idx = m_symtab_ap->AddSymbol(symbol);
 	m_symtab_ap->SectionFileAddressesChanged ();
 
 	UnwindPlanSP plan (new UnwindPlan (lldb::eRegisterKindDWARF));
 	plan->SetSourceName ("Mono JIT");
+	//plan->SetSourcedFromCompiler (LazyBool (true));
+	//plan->SetUnwindPlanValidAtAllInstructions (LazyBool (true));
 	plan->SetReturnAddressRegister (ret_reg);
 
 	UnwindPlan::Row *row = new UnwindPlan::Row ();
@@ -298,7 +301,23 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	*/
 
 	if (entry->nunwind_ops > 0)
-		unwinders [symbol.GetAddressRef().GetFileAddress()] = plan;
+		m_unwinders [symbol.GetAddressRef().GetFileAddress()] = plan;
+
+	int id = m_ranges.GetSize ();
+	MonoMethodInfo *method = new MonoMethodInfo (id, name, AddressRange (section, offset, entry->code_size), m_symtab_ap->SymbolAtIndex (symbol_idx));
+
+	m_ranges.Append(RangeToMethod::Entry ((addr_t)entry->code, entry->code_size, method));
+}
+
+MonoMethodInfo*
+ObjectFileMono::FindMethodByAddr (lldb::addr_t addr)
+{
+    const RangeToMethod::Entry *entry = m_ranges.FindEntryThatContains (addr);
+
+	if (entry)
+		return entry->data;
+	else
+		return NULL;
 }
 
 Symtab *
@@ -457,10 +476,11 @@ ObjectFileMono::ReadSectionData (const lldb_private::Section *section,
 lldb::UnwindPlanSP
 ObjectFileMono::GetUnwindPlan(lldb_private::AddressRange range, lldb::offset_t offset)
 {
-	auto iter = unwinders.find (range.GetBaseAddress ().GetFileAddress ());
-	if (iter != unwinders.end ()) {
-		Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
+	Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
 
+	//fprintf (stderr, "GetUnwindPlan: %p\n", (uint8_t*)range.GetBaseAddress ().GetFileAddress ());
+	auto iter = m_unwinders.find (range.GetBaseAddress ().GetFileAddress ());
+	if (iter != m_unwinders.end ()) {
 		lldb::UnwindPlanSP plan (iter->second);
 
 		if (log) {

@@ -22,6 +22,22 @@
 #include "lldb/Core/UUID.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Address.h"
+#include "lldb/Core/AddressRange.h"
+#include "lldb/Core/RangeMap.h"
+
+namespace lldb_private {
+
+class MonoMethodInfo
+{
+public:
+	MonoMethodInfo (int id, char *name, AddressRange range, Symbol *symbol) : m_id (id), m_name(name), m_range (range), m_symbol (symbol) {
+	}
+
+	int m_id;
+	char *m_name;
+	AddressRange m_range;
+	Symbol *m_symbol;
+};
 
 class ObjectFileMono :
     public lldb_private::ObjectFile
@@ -142,6 +158,8 @@ public:
 
 	void AddMethod (void *buf, int size);
 
+	MonoMethodInfo* FindMethodByAddr (lldb::addr_t addr);
+
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
@@ -152,7 +170,12 @@ public:
     GetPluginVersion() override;
 
 private:
-	std::map<lldb::addr_t, lldb::UnwindPlanSP> unwinders;
+	std::map<lldb::addr_t, lldb::UnwindPlanSP> m_unwinders;
+
+    typedef lldb_private::RangeDataArray<lldb::addr_t, uint32_t, MonoMethodInfo*, 1> RangeToMethod;
+	RangeToMethod m_ranges;
 };
+
+}
 
 #endif // liblldb_ObjectFileMono_h_

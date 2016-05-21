@@ -114,7 +114,7 @@ SymbolVendorMono::CreateInstance (const lldb::ModuleSP &module_sp, lldb_private:
 	return symbol_vendor;
 }
 
-static void
+static __attribute__((unused)) void
 enter_method (const char *name)
 {
     Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
@@ -123,12 +123,14 @@ enter_method (const char *name)
 		log->Printf("SymbolVendorMono::%s enter.", name);
 }
 
-#define ENTER enter_method(__FUNCTION__)
+//#define ENTER enter_method(__FUNCTION__)
+#define ENTER
 
 void
 SymbolVendorMono::Dump(Stream *s)
 {
 	ENTER;
+	SymbolVendor::Dump (s);
 }
 
 lldb::LanguageType
@@ -214,12 +216,50 @@ SymbolVendorMono::ResolveSymbolContext (const Address& so_addr,
 										uint32_t resolve_scope,
 										SymbolContext& sc)
 {
+	/*
     Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
 
 	if (log)
-		log->Printf("SymbolVendorMono::%s %p.", __FUNCTION__, so_addr.GetFileAddress ());
+		log->Printf("SymbolVendorMono::%s %p.", __FUNCTION__, (void*)so_addr.GetFileAddress ());
+	*/
 
-	return 0;
+    ObjectFileMono *obj_file = (ObjectFileMono*)GetModule()->GetObjectFile();
+	MonoMethodInfo *method = obj_file->FindMethodByAddr (so_addr.GetFileAddress ());
+	if (!method)
+		return 0;
+
+	while (method->m_id >= m_compile_units.size ()) {
+		int new_size = m_compile_units.empty () ? 32 : m_compile_units.size () * 2;
+		m_compile_units.resize (new_size);
+	}
+
+	if (!m_compile_units [method->m_id]) {
+		// Use one compile unit for each method
+		CompUnitSP comp_unit = CompUnitSP (new CompileUnit (GetModule (), NULL, "hello.cs", method->m_id, LanguageType::eLanguageTypeC99, false));
+
+		FunctionSP function = FunctionSP (new Function (comp_unit.get(), 0, 0, method->m_name, NULL, method->m_range));
+		Block &block = function->GetBlock (false);
+		block.AddRange (Block::Range(0, method->m_range.GetByteSize ()));
+		block.SetBlockInfoHasBeenParsed (true, true);
+
+		comp_unit->AddFunction (function);
+		m_compile_units [method->m_id] = comp_unit;
+	}
+
+    uint32_t resolved = 0;
+	sc.comp_unit = m_compile_units [method->m_id].get();
+	resolved |= eSymbolContextCompUnit;
+	if (resolve_scope & (eSymbolContextFunction | eSymbolContextBlock)) {
+		sc.function = sc.comp_unit->GetFunctionAtIndex (0).get ();
+		resolved |= eSymbolContextFunction;
+	}
+
+	if (resolve_scope & eSymbolContextSymbol) {
+		sc.symbol = method->m_symbol;
+		resolved |= eSymbolContextSymbol;
+	}
+
+	return resolved;
 }
 
 uint32_t
@@ -336,25 +376,19 @@ SymbolVendorMono::GetTypes (SymbolContextScope *sc_scope,
 	return 0;
 }
 
-// Get module unified section list symbol table.
 Symtab *
 SymbolVendorMono::GetSymtab ()
 {
 	ENTER;
-	return NULL;
+	return GetModule ()->GetObjectFile ()->GetSymtab ();
 }
 
-// Clear module unified section list symbol table.
 void
 SymbolVendorMono::ClearSymtab ()
 {
 	ENTER;
 }
 
-//------------------------------------------------------------------
-/// Notify the SymbolVendor that the file addresses in the Sections
-/// for this module have been changed.
-//------------------------------------------------------------------
 void
 SymbolVendorMono::SectionFileAddressesChanged ()
 {
