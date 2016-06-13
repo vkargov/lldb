@@ -87,7 +87,7 @@ public:
                              lldb::offset_t length,
                              lldb_private::ModuleSpecList &specs);
 
-	static uint64_t
+	static int
 	GetMethodEntryRegion(void *buf, int size);
 
     //------------------------------------------------------------------
@@ -160,6 +160,8 @@ public:
 
 	MonoMethodInfo* FindMethodByAddr (lldb::addr_t addr);
 
+	int	GetId (void);
+
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
@@ -174,6 +176,7 @@ private:
 
     typedef lldb_private::RangeDataArray<lldb::addr_t, uint32_t, MonoMethodInfo*, 1> RangeToMethod;
 	RangeToMethod m_ranges;
+	int m_id;
 };
 
 }

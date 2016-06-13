@@ -96,7 +96,7 @@ private:
 
     lldb::addr_t m_jit_descriptor_addr;
     lldb::user_id_t m_jit_break_id;
-	std::map<lldb::addr_t,lldb_private::ObjectFile*> regions;
+	std::map<int,lldb_private::ObjectFile*> m_regions;
 };
 
 #endif // liblldb_JITLoaderMono_h_

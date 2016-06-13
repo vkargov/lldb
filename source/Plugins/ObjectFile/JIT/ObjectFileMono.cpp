@@ -131,7 +131,8 @@ ObjectFileMono::ObjectFileMono (const lldb::ModuleSP &module_sp,
 								addr_t header_addr) :
     ObjectFile(module_sp, process_sp, header_addr, header_data_sp),
 	m_unwinders(),
-    m_ranges()
+    m_ranges(),
+	m_id(0)
 {
 }
 
@@ -167,6 +168,7 @@ typedef struct {
 	char magic [32];
 	uint64_t start;
 	int32_t size;
+	int id;
 } CodeRegionEntry;
 
 typedef struct {
@@ -177,21 +179,28 @@ typedef struct {
 } XUnwindOp;
 
 typedef struct {
-	uint64_t region_addr;
 	uint64_t code;
+	int id;
+	int region_id;
 	int code_size;
 	int nunwind_ops;
 	int name_offset;
 	int unwind_ops_offset;
 } MethodEntry;
 
-uint64_t
+int
 ObjectFileMono::GetMethodEntryRegion(void *buf, int size)
 {
 	MethodEntry *entry;
 
 	entry = (MethodEntry*)buf;
-	return entry->region_addr;
+	return entry->region_id;
+}
+
+int
+ObjectFileMono::GetId(void)
+{
+	return m_id;
 }
 
 void
@@ -330,10 +339,12 @@ ObjectFileMono::GetSymtab()
 	CodeRegionEntry entry;
 	reader.ExtractBytes (0, sizeof (CodeRegionEntry), eByteOrderLittle, &entry);
 
+	m_id = entry.id;
+
 	Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
 
 	if (log)
-		log->Printf("ObjectFileMono::%s added JIT object file for range [%p-%p]", __FUNCTION__, (uint8_t*)entry.start, (uint8_t*)entry.start + entry.size);
+		log->Printf("ObjectFileMono::%s added JIT object file %d for range [%p-%p]", __FUNCTION__, m_id, (uint8_t*)entry.start, (uint8_t*)entry.start + entry.size);
 
 	m_sections_ap.reset(new SectionList());
 	m_symtab_ap.reset(new Symtab(this));
@@ -391,7 +402,6 @@ ObjectFileMono::GetUUID (lldb_private::UUID* uuid)
 {
     return false;
 }
-
 
 uint32_t
 ObjectFileMono::GetDependentModules (FileSpecList& files)

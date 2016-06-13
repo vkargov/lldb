@@ -245,7 +245,7 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 
 	if (log)
 		log->Printf(
-                    "JITLoaderMono::%s registering JIT entry %d at 0x%" PRIx64
+                    "JITLoaderMono::%s registering JIT entry type %d at 0x%" PRIx64
                     " (%" PRIu64 " bytes)",
                     __FUNCTION__, debug_entry.type, addr, (uint64_t) size);
 
@@ -277,10 +277,7 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 
 			target.ModulesDidLoad(module_list);
 
-			// The file address is the vm address in the debuggee
-			addr_t addr = ofile->GetSectionList (true)->GetSectionAtIndex (0)->GetFileAddress ();
-
-			regions [addr] = ofile;
+			m_regions [ofile->GetId ()] = ofile;
 		} else {
 			if (log)
 				log->Printf("JITLoaderMono::%s failed to load module for "
@@ -291,15 +288,14 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 	case ENTRY_METHOD: {
 		uint8_t *buf = new uint8_t [debug_entry.size];
 		Error error;
-		uint64_t region_addr;
 
 		m_process->ReadMemory (debug_entry.addr, buf, debug_entry.size, error);
 		assert (!error.Fail ());
 
-		region_addr = ObjectFileMono::GetMethodEntryRegion(buf, debug_entry.size);
-		
-		auto iter = regions.find ((addr_t)region_addr);
-		assert (iter != regions.end ());
+		int region_id = ObjectFileMono::GetMethodEntryRegion(buf, debug_entry.size);
+
+		auto iter = m_regions.find (region_id);
+		assert (iter != m_regions.end ());
 		ObjectFileMono *ofile = (ObjectFileMono*)iter->second;
 
 		ofile->AddMethod (buf, debug_entry.size);
