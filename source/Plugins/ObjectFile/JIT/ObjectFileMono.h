@@ -90,6 +90,9 @@ public:
 	static int
 	GetMethodEntryRegion(void *buf, int size);
 
+	static int
+	GetTrampolineEntryRegion(void *buf, int size);
+
     //------------------------------------------------------------------
     // Member Functions
     //------------------------------------------------------------------
@@ -157,6 +160,8 @@ public:
 	GetUnwindPlan(lldb_private::AddressRange range, lldb::offset_t offset) override;
 
 	void AddMethod (void *buf, int size);
+
+	void AddTrampoline (void *buf, int size);
 
 	MonoMethodInfo* FindMethodByAddr (lldb::addr_t addr);
 

@@ -176,7 +176,7 @@ typedef struct {
 	int when;
 	int reg;
 	int val;
-} XUnwindOp;
+} UnwindOp;
 
 typedef struct {
 	uint64_t code;
@@ -188,12 +188,28 @@ typedef struct {
 	int unwind_ops_offset;
 } MethodEntry;
 
+typedef struct {
+	uint64_t code;
+	int id;
+	int region_id;
+	int code_size;
+	int nunwind_ops;
+	int name_offset;
+	int unwind_ops_offset;
+} TrampolineEntry;
+
 int
 ObjectFileMono::GetMethodEntryRegion(void *buf, int size)
 {
-	MethodEntry *entry;
+	MethodEntry *entry = (MethodEntry*)buf;
+	return entry->region_id;
+}
 
-	entry = (MethodEntry*)buf;
+int
+ObjectFileMono::GetTrampolineEntryRegion(void *buf, int size)
+{
+	TrampolineEntry *entry = (TrampolineEntry*)buf;
+
 	return entry->region_id;
 }
 
@@ -203,50 +219,9 @@ ObjectFileMono::GetId(void)
 	return m_id;
 }
 
-void
-ObjectFileMono::AddMethod(void *buf, int size)
+static void
+AddUnwindPlan (std::map<lldb::addr_t, lldb::UnwindPlanSP> &m_unwinders, Symbol *symbol, UnwindOp *unwind_ops, int nunwind_ops, int ret_reg)
 {
-	uint8_t *p = (uint8_t*)buf;	
-	MethodEntry *entry;
-	char *name;
-	XUnwindOp *unwind_ops;
-	int i, ret_reg;
-
-	// FIXME: 32/64 bit
-
-    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
-
-	entry = (MethodEntry*)p;
-	name = (char*)(p + entry->name_offset);
-	ret_reg = *(p + entry->unwind_ops_offset);
-	unwind_ops = (XUnwindOp*)(p + entry->unwind_ops_offset + 1);
-
-	if (log)
-		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
-
-	static int symbol_id = m_symtab_ap->GetNumSymbols ();
-
-	auto section = GetSectionList (true)->GetSectionAtIndex (0);
-	int offset = (addr_t)entry->code - (addr_t)section->GetFileAddress ();
-
-	Symbol symbol(
-            symbol_id,    // Symbol table index
-            name,     // symbol name.
-            false,      // is the symbol name mangled?
-            eSymbolTypeCode, // Type of this symbol
-            false,           // Is this globally visible?
-            false,           // Is this symbol debug info?
-            true,            // Is this symbol a trampoline?
-            true,            // Is this symbol artificial?
-			section, // Section in which this symbol is defined or null.
-			offset,       // Offset in section or symbol value.
-            entry->code_size,     // Size in bytes of this symbol.
-            true,            // Size is valid
-            false,           // Contains linker annotations?
-            0);              // Symbol flags.
-	int symbol_idx = m_symtab_ap->AddSymbol(symbol);
-	m_symtab_ap->SectionFileAddressesChanged ();
-
 	UnwindPlanSP plan (new UnwindPlan (lldb::eRegisterKindDWARF));
 	plan->SetSourceName ("Mono JIT");
 	//plan->SetSourcedFromCompiler (LazyBool (true));
@@ -259,8 +234,8 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	int cfa_offset = -1;
 	int last_when = -1;
 	bool skip_rest = false;
-	for (i = 0; i < entry->nunwind_ops; ++i) {
-		XUnwindOp *op = unwind_ops + i;
+	for (int oindex = 0; oindex < nunwind_ops; ++oindex) {
+		UnwindOp *op = unwind_ops + oindex;
 
 		if (op->when > last_when) {
 			UnwindPlan::RowSP row_sp (row);
@@ -309,13 +284,106 @@ ObjectFileMono::AddMethod(void *buf, int size)
 	plan->Dump (s, nullptr, 0);
 	*/
 
-	if (entry->nunwind_ops > 0)
-		m_unwinders [symbol.GetAddressRef().GetFileAddress()] = plan;
+	if (nunwind_ops > 0)
+		m_unwinders [symbol->GetAddressRef().GetFileAddress()] = plan;
+}
 
-	int id = m_ranges.GetSize ();
-	MonoMethodInfo *method = new MonoMethodInfo (id, name, AddressRange (section, offset, entry->code_size), m_symtab_ap->SymbolAtIndex (symbol_idx));
+void
+ObjectFileMono::AddMethod(void *buf, int size)
+{
+	uint8_t *p = (uint8_t*)buf;
+	MethodEntry *entry;
+	char *name;
+	UnwindOp *unwind_ops;
+	int i, ret_reg;
+
+	// FIXME: 32/64 bit
+
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
+
+	entry = (MethodEntry*)p;
+	name = (char*)(p + entry->name_offset);
+	ret_reg = *(p + entry->unwind_ops_offset);
+	unwind_ops = (UnwindOp*)(p + entry->unwind_ops_offset + 1);
+
+	if (log)
+		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
+
+	static int symbol_id = m_symtab_ap->GetNumSymbols ();
+
+	auto section = GetSectionList (true)->GetSectionAtIndex (0);
+	int offset = (addr_t)entry->code - (addr_t)section->GetFileAddress ();
+
+	Symbol symbol(
+            symbol_id,    // Symbol table index
+            name,     // symbol name.
+            false,      // is the symbol name mangled?
+            eSymbolTypeCode, // Type of this symbol
+            false,           // Is this globally visible?
+            false,           // Is this symbol debug info?
+            true,            // Is this symbol a trampoline?
+            true,            // Is this symbol artificial?
+			section, // Section in which this symbol is defined or null.
+			offset,       // Offset in section or symbol value.
+            entry->code_size,     // Size in bytes of this symbol.
+            true,            // Size is valid
+            false,           // Contains linker annotations?
+            0);              // Symbol flags.
+	int symbol_idx = m_symtab_ap->AddSymbol(symbol);
+	m_symtab_ap->SectionFileAddressesChanged ();
+
+	AddUnwindPlan (m_unwinders, &symbol, unwind_ops, entry->nunwind_ops, ret_reg);
+
+	MonoMethodInfo *method = new MonoMethodInfo (entry->id, name, AddressRange (section, offset, entry->code_size), m_symtab_ap->SymbolAtIndex (symbol_idx));
 
 	m_ranges.Append(RangeToMethod::Entry ((addr_t)entry->code, entry->code_size, method));
+}
+
+void
+ObjectFileMono::AddTrampoline(void *buf, int size)
+{
+	uint8_t *p = (uint8_t*)buf;
+	TrampolineEntry *entry;
+	char *name;
+	UnwindOp *unwind_ops;
+	int ret_reg;
+
+	// FIXME: 32/64 bit
+
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_JIT_LOADER));
+
+	entry = (TrampolineEntry*)p;
+	name = (char*)(p + entry->name_offset);
+	ret_reg = *(p + entry->unwind_ops_offset);
+	unwind_ops = (UnwindOp*)(p + entry->unwind_ops_offset + 1);
+
+	if (log)
+		log->Printf("ObjectFileMono::%s %s [%p-%p]", __FUNCTION__, name, (char*)entry->code, (char*)entry->code + entry->code_size);
+
+	static int symbol_id = m_symtab_ap->GetNumSymbols ();
+
+	auto section = GetSectionList (true)->GetSectionAtIndex (0);
+	int offset = (addr_t)entry->code - (addr_t)section->GetFileAddress ();
+
+	Symbol symbol(
+            symbol_id,    // Symbol table index
+            name,     // symbol name.
+            false,      // is the symbol name mangled?
+            eSymbolTypeCode, // Type of this symbol
+            false,           // Is this globally visible?
+            false,           // Is this symbol debug info?
+            true,            // Is this symbol a trampoline?
+            true,            // Is this symbol artificial?
+			section, // Section in which this symbol is defined or null.
+			offset,       // Offset in section or symbol value.
+            entry->code_size,     // Size in bytes of this symbol.
+            true,            // Size is valid
+            false,           // Contains linker annotations?
+            0);              // Symbol flags.
+	m_symtab_ap->AddSymbol(symbol);
+	m_symtab_ap->SectionFileAddressesChanged ();
+
+	AddUnwindPlan (m_unwinders, &symbol, unwind_ops, entry->nunwind_ops, ret_reg);
 }
 
 MonoMethodInfo*

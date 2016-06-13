@@ -188,11 +188,27 @@ struct mono_jit_descriptor
 
 typedef enum {
 	ENTRY_CODE_REGION = 1,
-	ENTRY_METHOD = 2
+	ENTRY_METHOD = 2,
+	ENTRY_TRAMPOLINE = 3,
 } EntryType;
 
 #define MAJOR_VERSION 1
 #define MINOR_VERSION 0
+
+static const char*
+entry_type_to_str (EntryType type)
+{
+	switch (type) {
+	case ENTRY_CODE_REGION:
+		return "code-region";
+	case ENTRY_METHOD:
+		return "method";
+	case ENTRY_TRAMPOLINE:
+		return "trampoline";
+	default:
+		return "unknown";
+	}
+}
 
 template <typename ptr_t>
 bool
@@ -245,9 +261,9 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 
 	if (log)
 		log->Printf(
-                    "JITLoaderMono::%s registering JIT entry type %d at 0x%" PRIx64
+                    "JITLoaderMono::%s registering JIT entry %s at 0x%" PRIx64
                     " (%" PRIu64 " bytes)",
-                    __FUNCTION__, debug_entry.type, addr, (uint64_t) size);
+                    __FUNCTION__, entry_type_to_str ((EntryType)debug_entry.type), addr, (uint64_t) size);
 
 	switch (debug_entry.type) {
 	case ENTRY_CODE_REGION:
@@ -299,6 +315,22 @@ JITLoaderMono::ReadJITDescriptorImpl(bool all_entries)
 		ObjectFileMono *ofile = (ObjectFileMono*)iter->second;
 
 		ofile->AddMethod (buf, debug_entry.size);
+		break;
+	}
+	case ENTRY_TRAMPOLINE: {
+		uint8_t *buf = new uint8_t [debug_entry.size];
+		Error error;
+
+		m_process->ReadMemory (debug_entry.addr, buf, debug_entry.size, error);
+		assert (!error.Fail ());
+
+		int region_id = ObjectFileMono::GetTrampolineEntryRegion(buf, debug_entry.size);
+
+		auto iter = m_regions.find (region_id);
+		assert (iter != m_regions.end ());
+		ObjectFileMono *ofile = (ObjectFileMono*)iter->second;
+
+		ofile->AddTrampoline (buf, debug_entry.size);
 		break;
 	}
 	default:
