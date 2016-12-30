@@ -19,6 +19,7 @@
 #include "lldb/Utility/Endian.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/UUID.h"
+#include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {
@@ -808,6 +809,11 @@ public:
   virtual std::string
   StripLinkerSymbolAnnotations(llvm::StringRef symbol_name) const {
     return symbol_name.str();
+  }
+
+  virtual lldb::UnwindPlanSP
+  GetUnwindPlan(lldb_private::AddressRange range, lldb::offset_t offset) {
+    return nullptr;
   }
 
   static lldb::SymbolType GetSymbolTypeFromName(
