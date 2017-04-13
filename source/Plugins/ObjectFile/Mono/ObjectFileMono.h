@@ -17,9 +17,9 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-private.h"
-#include "lldb/Host/FileSpec.h"
+#include "lldb/Utility/FileSpec.h"
 #include "lldb/Symbol/ObjectFile.h"
-#include "lldb/Core/UUID.h"
+#include "lldb/Utility/UUID.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/AddressRange.h"

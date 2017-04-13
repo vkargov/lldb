@@ -11,11 +11,11 @@
 
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/Log.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/StreamString.h"
+#include "lldb/Utility/StreamString.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/SymbolVendor.h"
